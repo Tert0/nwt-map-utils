@@ -4,6 +4,10 @@
 #include <time.h>
 
 #define GET_RANDOM_DOUBLE(min, max) (((double)rand() / RAND_MAX) * ((max) - (min)) + (min))
+
+#define HIGH_DANGER_MAX 500
+#define MEDIUM_DANGER_MAX 1000
+
 typedef unsigned char byte;
 
 byte calculate_checksum_short(short v) {
@@ -53,8 +57,8 @@ int main(int argc, char** argv) {
             unsigned short distance3 = rand() % 4000;
             //double latitude = GET_RANDOM_DOUBLE(-90.0, 90.0);
             //double longitude = GET_RANDOM_DOUBLE(-180.0, 180.0);
-            double latitude = GET_RANDOM_DOUBLE(50.0, 53.0);
-            double longitude = GET_RANDOM_DOUBLE(5.0, 15.0);
+            double latitude = GET_RANDOM_DOUBLE(52.5, 52.6);
+            double longitude = GET_RANDOM_DOUBLE(13.4, 13.5);
             byte pulse = 0;
             byte checksum = calculate_checksum(distance1, distance2, distance3, latitude, longitude, pulse);
 
@@ -96,6 +100,56 @@ int main(int argc, char** argv) {
                 printf("INVALID\n");
             }
         }
+    } else if(strcmp(argv[1], "filter") == 0) {
+        if(argc < 3) {
+            fprintf(stderr, "usage: %s filter <medium|high>\n", argv[0]);
+            return 1;
+        }
+        char* filter_type = argv[2];
+        int limit = -1;
+        if(strcmp(filter_type, "medium") == 0) {
+            limit = MEDIUM_DANGER_MAX;
+        } else if(strcmp(filter_type, "high") == 0) {
+            limit = HIGH_DANGER_MAX;
+        } else {
+            fprintf(stderr, "Invalid filter type\n");
+            return 1;
+        }
+        while(1) {
+            unsigned short distance1;
+            unsigned short distance2;
+            unsigned short distance3;
+            double latitude;
+            double longitude;
+            byte pulse;
+            byte checksum;
+            int n = fread(& distance1, 2, 1, stdin);
+            if(n==0) {
+                return 0;
+            }
+            fread(& distance2, 2, 1, stdin);
+            fread(& distance3, 2, 1, stdin);
+            fread(& latitude, 8, 1, stdin);
+            fread(& longitude, 8, 1, stdin);
+            fread(& pulse, 1, 1, stdin);
+            fread(& checksum, 1, 1, stdin);
+
+            if((calculate_checksum(distance1, distance2, distance3, latitude, longitude, pulse) ^ checksum) != 0) {
+                fprintf(stderr, "Found invalid entry\n");
+                continue;
+            }
+
+            if(distance1 < limit || distance2 < limit || distance3 < limit) {
+                fwrite(& distance1, 2, 1, stdout);
+                fwrite(& distance2, 2, 1, stdout);
+                fwrite(& distance3, 2, 1, stdout);
+                fwrite(& latitude, 8, 1, stdout);
+                fwrite(& longitude, 8, 1, stdout);
+                fwrite(& pulse, 1, 1, stdout);
+                fwrite(& checksum, 1, 1, stdout);
+            }
+        }
+        return 0;
     } else {
         puts("unkown argument");
         return 1;
