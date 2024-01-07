@@ -1,3 +1,9 @@
+# Executable
 main
-data
+# Generate data (and production data)
+data*
+prod*
+# Old Arduino Code
+*.ino
+# VSCode Settings
 .vscode
